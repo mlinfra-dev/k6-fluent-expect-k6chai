@@ -8,7 +8,7 @@
   "engines": {},
   "scripts": {
     "build": "esbuild ./src/index.ts --bundle --log-level=info --external:k6 --format=esm --outfile=build/index.js && npm run build:dts",
-    "build:dts": "dts-bundle-generator --no-check --external-inlines @types/chai -o ./build/index.d.ts ./src/index.ts"
+    "build:dts": "dts-bundle-generator --no-check  -o ./build/index.d.ts ./src/index.ts"
   },
   "keywords": [
     "k6"
@@ -16,10 +16,10 @@
   "author": "k6 team",
   "license": "MIT",
   "dependencies": {
-    "chai": "^4.5.0"
+    "chai": "^4.5.0",
+    "@types/chai": "^4.3.1"
   },
   "devDependencies": {
-    "@types/chai": "^4.3.1",
     "@types/k6": "^0.37.0",
     "@types/node": "^18.0.6",
     "@typescript-eslint/eslint-plugin": "^5.30.7",
