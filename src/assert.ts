@@ -1,8 +1,23 @@
-import { check } from 'k6';
+import { check, Checkers } from 'k6';
 import exec from 'k6/execution';
 import { Assert, AssertionArgs } from './types';
 import chai from './config';
 import { isFunction, regexTag, truncate } from './utils';
+
+let customAssertCheck: typeof check | null = null;
+function assertCheck<VT>(val: VT, sets: Checkers<VT>, tags?: object): boolean {
+  if (customAssertCheck) {
+    return customAssertCheck(val, sets, tags);
+  }
+  return check(val, sets, tags);
+}
+export function configureAssertOverride({
+  customCheck
+}: {
+  customCheck: typeof check | null;
+}) {
+  customAssertCheck = customCheck;
+}
 
 const getObjectDisplay = (obj: object) => {
   return chai.util.objDisplay(obj) as unknown as string;
@@ -130,7 +145,7 @@ export function assert(): Assert {
       ? createTestName(context, template)
       : testExpectation;
 
-    check(null, {
+    assertCheck(null, {
       [testName]: () => ok
     });
 
