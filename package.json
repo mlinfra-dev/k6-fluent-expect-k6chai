@@ -3,12 +3,19 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Create a chaijs k6 build",
-  "main": "./build/index.js",
+  "main": "./build/index.cjs",
+  "module": "./build/index.js",
   "types": "./build/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "import": "./build/index.js",
+      "require": "./build/index.cjs"
+    }
+  },
   "engines": {},
   "scripts": {
-    "build": "esbuild ./src/index.ts --bundle --log-level=info --external:k6 --format=esm --outfile=build/index.js && npm run build:dts",
-    "build:dts": "dts-bundle-generator --no-check  -o ./build/index.d.ts ./src/index.ts"
+    "build": "tsup"
   },
   "keywords": [
     "k6"
@@ -16,8 +23,8 @@
   "author": "k6 team",
   "license": "MIT",
   "dependencies": {
-    "chai": "^4.5.0",
-    "@types/chai": "^4.3.1"
+    "@types/chai": "^4.3.1",
+    "chai": "^4.5.0"
   },
   "devDependencies": {
     "@types/k6": "^0.37.0",
@@ -30,6 +37,7 @@
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",
     "prettier": "^2.7.1",
+    "tsup": "^8.5.1",
     "typescript": "^4.7.4"
   }
 }
