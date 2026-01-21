@@ -1719,7 +1719,9 @@ export declare function configureAssertOverride({ customCheck }: {
  * Handle assertion grouping the K6 way
  */
 export declare function describe(name: string, fn: (...xs: unknown[]) => unknown): boolean;
-export declare const expect: Chai.ExpectStatic;
+export interface Assertion extends Chai.Assertion {
+}
+export declare const expect: (val: any, message?: string) => Assertion;
 
 export {
 	chai as default,
