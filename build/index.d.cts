@@ -11,6 +11,13 @@ declare function configureAssertOverride({ customCheck }: {
  */
 declare function describe(name: string, fn: (...xs: unknown[]) => unknown): boolean;
 
+interface Config extends Chai.Config {
+    truncateVariableThreshold: number;
+    truncateMsgThreshold: number;
+    aggregateChecks: boolean;
+    logFailures: boolean;
+    exitOnError: boolean;
+}
 declare const expect: Chai.ExpectStatic;
 
-export { configureAssertOverride, describe, expect };
+export { type Config, configureAssertOverride, describe, expect };
