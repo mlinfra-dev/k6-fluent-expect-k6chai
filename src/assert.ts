@@ -38,6 +38,7 @@ function createExpectationTemplate(context: object, params: AssertionArgs) {
   const anonymizeMsgFunction = chai.util.flag(context, 'anonymizeMsgFunction');
 
   let message = negate ? failureMessage : successMessage;
+  message = message || '';
 
   // Chai only prints messages when something fails, for this reason phrasing is often
   // assuming failure. k6 wants to collect both failed and successful checks so messages must be
@@ -55,9 +56,10 @@ function createExpectationTemplate(context: object, params: AssertionArgs) {
   }
 
   message = message || '';
-  message = message.replace(regexTag('exp'), () =>
-    truncateByVariableThreshold(getObjectDisplay(expected))
-  );
+  // dont replace {exp} tag just yet!
+  // message = message.replace(regexTag('exp'), () =>
+  //   truncateByVariableThreshold(getObjectDisplay(expected))
+  // );
 
   return message;
 }
@@ -76,12 +78,17 @@ function createExpectationText(
   const actual = chai.util.getActual(context, params);
   const message = chai.util.flag(context, 'message');
 
+  const expected = params[3];
+
   let result = str
     .replace(regexTag('this'), () =>
       truncateByVariableThreshold(getObjectDisplay(object))
     )
     .replace(regexTag('act'), () =>
       truncateByVariableThreshold(getObjectDisplay(actual))
+    )
+    .replace(regexTag('exp'), () =>
+      truncateByVariableThreshold(getObjectDisplay(expected))
     );
 
   if (message && !chai.config.aggregateChecks) {
@@ -96,12 +103,25 @@ function createExpectationText(
  *
  * Example: "expected Number of crocs to be above 4"
  */
-function createTestName(context: object, str = '') {
+function createTestName(context: object, str = '', expected: any) {
+  const expectMessage = chai.util.flag(context, 'expect.message');
   const message = chai.util.flag(context, 'message');
 
-  const testName = str
-    .replace(regexTag('this'), () => message || '${this}')
+  const subject = expectMessage || message || '${this}';
+
+  let label: any = null;
+  if (message && message !== subject) {
+    label = message;
+  }
+
+  let testName = str
+    .replace(regexTag('this'), () => subject)
     .replace(regexTag('act'), () => '${actual}');
+
+  testName = testName.replace(regexTag('exp'), () => {
+    if (label) return label;
+    return truncateByVariableThreshold(getObjectDisplay(expected));
+  });
 
   return truncateByVariableThreshold(testName);
 }
@@ -138,17 +158,30 @@ export function assert(): Assert {
     const ok = chai.util.test(context, params);
     const actual = chai.util.getActual(context, params);
 
+    console.log('assert', {
+      expression,
+      successMessage,
+      failureMessage,
+      expected,
+      _actual,
+      showDiff,
+      ok,
+      actual,
+      context
+    });
+
     const template = createExpectationTemplate(context, params);
     const testExpectation = createExpectationText(context, template, params);
 
     const testName = chai.config.aggregateChecks
-      ? createTestName(context, template)
+      ? createTestName(context, template, expected)
       : testExpectation;
 
-    assertCheck(null, {
-      [testName]: () => ok
-    });
-
+    if (testName) {
+      assertCheck(null, {
+        [testName]: () => ok
+      });
+    }
     if (!ok) {
       const truncatedExpectation = truncateByVariableThreshold(testExpectation);
       const operator = chai.util.getOperator(context, params);

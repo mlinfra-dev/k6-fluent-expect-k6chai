@@ -4239,6 +4239,7 @@ function createExpectationTemplate(context, params) {
   const negate = config_default.util.flag(context, "negate");
   const anonymizeMsgFunction = config_default.util.flag(context, "anonymizeMsgFunction");
   let message = negate ? failureMessage : successMessage;
+  message = message || "";
   message = message.replace("but ", "");
   if (anonymizeMsgFunction) {
     message = anonymizeMsgFunction(message);
@@ -4247,31 +4248,41 @@ function createExpectationTemplate(context, params) {
     message = message();
   }
   message = message || "";
-  message = message.replace(
-    regexTag("exp"),
-    () => truncateByVariableThreshold(getObjectDisplay(expected))
-  );
   return message;
 }
 function createExpectationText(context, str = "", params) {
   const object = config_default.util.flag(context, "object");
   const actual = config_default.util.getActual(context, params);
   const message = config_default.util.flag(context, "message");
+  const expected = params[3];
   let result = str.replace(
     regexTag("this"),
     () => truncateByVariableThreshold(getObjectDisplay(object))
   ).replace(
     regexTag("act"),
     () => truncateByVariableThreshold(getObjectDisplay(actual))
+  ).replace(
+    regexTag("exp"),
+    () => truncateByVariableThreshold(getObjectDisplay(expected))
   );
   if (message && !config_default.config.aggregateChecks) {
     result = message ? message + ": " + result : result;
   }
   return result;
 }
-function createTestName(context, str = "") {
+function createTestName(context, str = "", expected) {
+  const expectMessage = config_default.util.flag(context, "expect.message");
   const message = config_default.util.flag(context, "message");
-  const testName = str.replace(regexTag("this"), () => message || "${this}").replace(regexTag("act"), () => "${actual}");
+  const subject = expectMessage || message || "${this}";
+  let label = null;
+  if (message && message !== subject) {
+    label = message;
+  }
+  let testName = str.replace(regexTag("this"), () => subject).replace(regexTag("act"), () => "${actual}");
+  testName = testName.replace(regexTag("exp"), () => {
+    if (label) return label;
+    return truncateByVariableThreshold(getObjectDisplay(expected));
+  });
   return truncateByVariableThreshold(testName);
 }
 function assert2() {
@@ -4288,12 +4299,25 @@ function assert2() {
     ];
     const ok = config_default.util.test(context, params);
     const actual = config_default.util.getActual(context, params);
+    console.log("assert", {
+      expression,
+      successMessage,
+      failureMessage,
+      expected,
+      _actual,
+      showDiff,
+      ok,
+      actual,
+      context
+    });
     const template = createExpectationTemplate(context, params);
     const testExpectation = createExpectationText(context, template, params);
-    const testName = config_default.config.aggregateChecks ? createTestName(context, template) : testExpectation;
-    assertCheck(null, {
-      [testName]: () => ok
-    });
+    const testName = config_default.config.aggregateChecks ? createTestName(context, template, expected) : testExpectation;
+    if (testName) {
+      assertCheck(null, {
+        [testName]: () => ok
+      });
+    }
     if (!ok) {
       const truncatedExpectation = truncateByVariableThreshold(testExpectation);
       const operator = config_default.util.getOperator(context, params);
@@ -4391,7 +4415,13 @@ function describe(name, fn) {
 
 // src/index.ts
 var index_default = config_default;
-var expect2 = config_default.expect;
+function expect_fn(val, msg) {
+  const assertion = config_default.expect(val, msg);
+  config_default.util.flag(assertion, "expect.message", msg);
+  return assertion;
+}
+expect_fn.fail = config_default.expect.fail;
+var expect2 = expect_fn;
 export {
   configureAssertOverride,
   index_default as default,
