@@ -4284,11 +4284,62 @@ function createTestName(context, str = "", expected) {
     label = message;
   }
   let testName = str.replace(regexTag("this"), () => subject).replace(regexTag("act"), () => "${actual}");
-  testName = testName.replace(regexTag("exp"), () => {
-    if (label) return label;
-    return truncateByVariableThreshold(getObjectDisplay(expected));
-  });
+  if (testName.includes("#{exp}")) {
+    testName = testName.replace(regexTag("exp"), () => {
+      if (label) return label;
+      return truncateByVariableThreshold(getObjectDisplay(expected));
+    });
+  } else {
+    if (label && (expected === null || expected === void 0)) {
+      testName = scrubBakedDataWithLabel(testName, label);
+    }
+  }
   return truncateByVariableThreshold(testName);
+}
+function scrubBakedDataWithLabel(testName, label) {
+  if (label) {
+    const scrubbers = [
+      /(?:include|contain) .+$/,
+      // .include('foo')
+      /match .+$/,
+      // .match(/foo/)
+      /close to .+$/,
+      // .closeTo(1, 0.1)
+      /within .+$/,
+      // .within(1, 10)
+      /by .+$/,
+      // .by(5)
+      /respond to .+$/,
+      // .respondTo('foo')
+      /have (?:deep )?(?:own )?(?:nested )?property .+$/,
+      // .property('foo')
+      /keys .+$/
+      // .keys('a', 'b')
+    ];
+    for (const regex of scrubbers) {
+      if (regex.test(testName)) {
+        testName = testName.replace(regex, (match) => {
+          let verb = match.split(" ")[0];
+          if (match.startsWith("close to")) verb = "close to";
+          if (match.startsWith("respond to")) verb = "respond to";
+          if (match.startsWith("have property") || match.includes("property")) verb = "have property";
+          if (match.includes("include") || match.includes("contain")) return `include ${label}`;
+          if (match.includes("match")) return `match ${label}`;
+          if (match.includes("close to")) return `close to ${label}`;
+          if (match.includes("within")) return `within ${label}`;
+          if (match.includes("by")) return `by ${label}`;
+          if (match.includes("respond to")) return `respond to ${label}`;
+          if (match.includes("keys")) return `have keys ${label}`;
+          if (match.includes("property")) {
+            return `have property ${label}`;
+          }
+          return match;
+        });
+        break;
+      }
+    }
+  }
+  return testName;
 }
 function assert2() {
   return function(expression, successMessage, failureMessage, expected, _actual, showDiff) {

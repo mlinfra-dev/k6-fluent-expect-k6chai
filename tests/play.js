@@ -10,4 +10,8 @@ export default function () {
 
   chai.expect(7).is.a('number').equal(7);
   chai.expect(8).is.a('number').equal(8, 'uid8');
+
+
+  let a = ["one", "two", "three"];
+  expect(a, "res.a").to.contain("two", "two.label");
 }

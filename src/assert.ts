@@ -118,13 +118,82 @@ function createTestName(context: object, str = '', expected: any) {
     .replace(regexTag('this'), () => subject)
     .replace(regexTag('act'), () => '${actual}');
 
-  testName = testName.replace(regexTag('exp'), () => {
-    if (label) return label;
-    return truncateByVariableThreshold(getObjectDisplay(expected));
-  });
+  if (testName.includes("#{exp}")) {
+    testName = testName.replace(regexTag('exp'), () => {
+      if (label) return label;
+      return truncateByVariableThreshold(getObjectDisplay(expected));
+    });
+  } else {
+    // no #{exp} templating, data might have been baked
+    if (label && (expected === null || expected === undefined)) {
+      testName = scrubBakedDataWithLabel(testName, label);
+    }
+  }
 
   return truncateByVariableThreshold(testName);
 }
+
+
+function scrubBakedDataWithLabel(testName: string, label: string) {
+  if (label) {
+    // We can just iterate a list of regexes that target the END of the string.
+    // This is safer than checking 'expected == null' because some methods (like .keys) 
+    // DO pass expected but still bake the message.
+
+    const scrubbers = [
+      /(?:include|contain) .+$/, // .include('foo')
+      /match .+$/,               // .match(/foo/)
+      /close to .+$/,            // .closeTo(1, 0.1)
+      /within .+$/,              // .within(1, 10)
+      /by .+$/,                  // .by(5)
+      /respond to .+$/,          // .respondTo('foo')
+      /have (?:deep )?(?:own )?(?:nested )?property .+$/, // .property('foo')
+      /keys .+$/                 // .keys('a', 'b')
+    ];
+
+    for (const regex of scrubbers) {
+      if (regex.test(testName)) {
+        // Example: "expected x to include 'admin'"
+        // Match: "include 'admin'"
+        // Replace with: "include {label}"
+
+        testName = testName.replace(regex, (match) => {
+          // Extract the verb (first word or known prefix)
+          // Simple hack: take everything up to the first space of the match
+          // "close to 1 +/- 0.5" -> verb is "close to"
+
+          let verb = match.split(' ')[0];
+
+          // Specific fixups for multi-word verbs
+          if (match.startsWith("close to")) verb = "close to";
+          if (match.startsWith("respond to")) verb = "respond to";
+          if (match.startsWith("have property") || match.includes("property")) verb = "have property"; // simplistic
+
+          // Actually, simpler approach:
+          // Just look for the keywords in the match string
+          if (match.includes("include") || match.includes("contain")) return `include ${label}`;
+          if (match.includes("match")) return `match ${label}`;
+          if (match.includes("close to")) return `close to ${label}`;
+          if (match.includes("within")) return `within ${label}`;
+          if (match.includes("by")) return `by ${label}`;
+          if (match.includes("respond to")) return `respond to ${label}`;
+          if (match.includes("keys")) return `have keys ${label}`;
+          if (match.includes("property")) {
+            // Preserve "have property" vs "not have property" logic from start of string?
+            // The regex matches the END. 
+            // "have property 'foo'" -> "have property {label}"
+            return `have property ${label}`;
+          }
+
+          return match; // Fallback
+        });
+        break; // Stop after first match
+      }
+    }
+  }
+  return testName;
+}
+
 
 /**
  * Overriding Chai's main assert() function to inject check() calls for both
