@@ -4322,8 +4322,10 @@ function scrubBakedDataWithLabel(testName, label) {
           let verb = match.split(" ")[0];
           if (match.startsWith("close to")) verb = "close to";
           if (match.startsWith("respond to")) verb = "respond to";
-          if (match.startsWith("have property") || match.includes("property")) verb = "have property";
-          if (match.includes("include") || match.includes("contain")) return `include ${label}`;
+          if (match.startsWith("have property") || match.includes("property"))
+            verb = "have property";
+          if (match.includes("include") || match.includes("contain"))
+            return `include ${label}`;
           if (match.includes("match")) return `match ${label}`;
           if (match.includes("close to")) return `close to ${label}`;
           if (match.includes("within")) return `within ${label}`;
@@ -4355,17 +4357,6 @@ function assert2() {
     ];
     const ok = config_default.util.test(context, params);
     const actual = config_default.util.getActual(context, params);
-    console.log("assert", {
-      expression,
-      successMessage,
-      failureMessage,
-      expected,
-      _actual,
-      showDiff,
-      ok,
-      actual,
-      context
-    });
     const template = createExpectationTemplate(context, params);
     const testExpectation = createExpectationText(context, template, params);
     const testName = config_default.config.aggregateChecks ? createTestName(context, template, expected) : testExpectation;
